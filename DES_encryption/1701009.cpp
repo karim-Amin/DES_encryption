@@ -26,6 +26,8 @@ string leftCircularShift(string input_text,int num_shifts);
 string xorGate(string input1, string input2);
 string encrypt(string plain_text,string key);
 string substitutionPermuted(string input_text,int sub_table[8][4][16],int num_tables,int num_rows,int num_colmuns);
+string adjustFourBits(int number);
+void swapStr(string str1, string str2);
 int binaryToDecimal(int n);
 int main()
 {
@@ -290,10 +292,16 @@ string encrypt(string plain_text,string key) {
     for (int i = 0; i < DES_NUM_OF_STAGES; i++) {
         /*expanding the plain text left half which will be 48 bits */
         expanded_right_plain = getPermuted(plain_right_half, expansion_permutation_table, 48);
+        /*the first xor operation in the round*/
         xor_result = xorGate(expanded_right_plain, subkeys[i]);
         /*the size of this plain text will be 32 bits again */
         permutated_plain_text = substitutionPermuted(xor_result, substitution_table, 8, 4, 16);
-        while (1);
+        /*last permutation stage*/
+        plain_right_half = getPermuted(permutated_plain_text, permutaion_table, 32);
+        /*the second xor operation in the round*/
+        plain_right_half = xorGate(plain_right_half, plain_left_half);
+        /*swap the right half plain text and the left half plain text */
+
     }
     return "";
 }
@@ -304,8 +312,8 @@ string encrypt(string plain_text,string key) {
 string substitutionPermuted(string input_text, int sub_table[8][4][16], int num_tables, int num_rows, int num_colmuns) {
     /*this will hold our text after permutation*/
     string text_after_permutation = "";
-    /*this holds the index from the tabel*/
-    int new_index;
+    /*this holds the four bits remaining*/
+    int new_four_bits;
     /*loop counter*/
     int i;
     /*counter will split the text into 8 groups consist of 6 bits*/
@@ -327,10 +335,34 @@ string substitutionPermuted(string input_text, int sub_table[8][4][16], int num_
         int int_row_num = binaryToDecimal(stoi(row_num));
         int int_column_num = binaryToDecimal(stoi(column_num));
         /*accessing the sub table and get the new index*/
-        new_index = sub_table[i][int_row_num][int_column_num] - 1;
-        text_after_permutation += input_text[new_index];
+        new_four_bits = sub_table[i][int_row_num][int_column_num];
+        text_after_permutation += adjustFourBits(new_four_bits);
     }
     return text_after_permutation;
+}
+/*
+ * Description : converts the decimal number to its corresponding binary code in string format
+ */
+string adjustFourBits(int number) {
+    switch (number) {
+    case 0: return "0000";
+    case 1: return "0001";
+    case 2: return "0010";
+    case 3: return "0011";
+    case 4: return "0100";
+    case 5: return "0101";
+    case 6: return "0110";
+    case 7: return "0111";
+    case 8: return "1000";
+    case 9: return "1001";
+    case 10: return "1010";
+    case 11: return "1011";
+    case 12: return "1100";
+    case 13: return "1101";
+    case 14: return "1110";
+    case 15: return "1111";
+    default: return "XXXX";
+    }
 }
 /* 
  * Description : to convert the binary code to decimal value   
@@ -354,4 +386,12 @@ int binaryToDecimal(int n)
     }
 
     return dec_value;
+}
+/*
+* Description : to swap two strings 
+*/
+void swapStr(string str1, string str2) {
+    string temp = str1;
+    str1 = str2;
+    str2 = temp;
 }
