@@ -14,7 +14,6 @@ using namespace std;
 *                               Definitions                           *
 ***********************************************************************/
 #define LEFT_KEY_PART_SIZE 28
-#define XOR_GATE_OUTPUT_SIZE 48
 #define DES_NUM_OF_STAGES 16
 /**********************************************************************
 *                               Function Prototypes                   *
@@ -36,7 +35,9 @@ int main()
     string key = "1323445A6D788381";
     string bin_plain_text = convertHexToBin(plain_text);
     string bin_key = convertHexToBin(key);
-    cout << encrypt(bin_plain_text, bin_key);
+    string cipher = encrypt(bin_plain_text, bin_key);
+    cipher = convertBinToHex(cipher);
+    cout <<"the cipher text : " <<cipher<<endl ;
     return 0;
 }
 /**********************************************************************
@@ -154,7 +155,7 @@ string xorGate(string input1, string input2) {
     /*counter to loop with*/
     int i;
     string result = "";
-    for (i = 0; i < XOR_GATE_OUTPUT_SIZE; i++) {
+    for (i = 0; i < input1.size(); i++) {
         if (input1[i] == input2[i]) {
             result += '0';
         }
@@ -271,7 +272,7 @@ string encrypt(string plain_text,string key) {
                           1, 15, 13, 8, 10, 3, 7, 4, 12, 5, 6, 11, 0, 14, 9, 2,
                           7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8,
                           2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11 } };
-    // permutaion table 
+    /* permutaion table*/ 
     int permutaion_table[32] = {16, 7, 20, 21,
                                 29, 12, 28, 17,
                                 1, 15, 23, 26,
@@ -280,6 +281,15 @@ string encrypt(string plain_text,string key) {
                                 32, 27, 3, 9,
                                 19, 13, 30, 6,
                                 22, 11, 4, 25 };
+    /*inverse initial permutation*/
+    int inverse_init_perm_table[64] = { 40, 8, 48, 16, 56, 24, 64, 32,
+                           39, 7, 47, 15, 55, 23, 63, 31,
+                           38, 6, 46, 14, 54, 22, 62, 30,
+                           37, 5, 45, 13, 53, 21, 61, 29,
+                           36, 4, 44, 12, 52, 20, 60, 28,
+                           35, 3, 43, 11, 51, 19, 59, 27,
+                           34, 2, 42, 10, 50, 18, 58, 26,
+                           33, 1, 41, 9, 49, 17, 57, 25 };
     string permutated_plain_text = getPermuted(plain_text, initial_permutation_table, 64);
     /*now to follow the DES standard we have to split plain text into two halves*/
     string plain_left_half = permutated_plain_text.substr(0, 32);
@@ -288,22 +298,35 @@ string encrypt(string plain_text,string key) {
     string expanded_right_plain;
     /*holds the result from the xor operation*/
     string xor_result;
+    /*to hold the substitution result*/
+    string substituation_result;
+    /*to hold the final permutation in the round*/
+    string final_permutation;
     /*this loop for 16 rounds*/
+    /*this is the impelementation for only one round*/
     for (int i = 0; i < DES_NUM_OF_STAGES; i++) {
         /*expanding the plain text left half which will be 48 bits */
         expanded_right_plain = getPermuted(plain_right_half, expansion_permutation_table, 48);
         /*the first xor operation in the round*/
         xor_result = xorGate(expanded_right_plain, subkeys[i]);
         /*the size of this plain text will be 32 bits again */
-        permutated_plain_text = substitutionPermuted(xor_result, substitution_table, 8, 4, 16);
+        substituation_result = substitutionPermuted(xor_result, substitution_table, 8, 4, 16);
         /*last permutation stage*/
-        plain_right_half = getPermuted(permutated_plain_text, permutaion_table, 32);
+        final_permutation = getPermuted(substituation_result, permutaion_table, 32);
         /*the second xor operation in the round*/
-        plain_right_half = xorGate(plain_right_half, plain_left_half);
+        plain_right_half = xorGate(final_permutation, plain_left_half);
         /*swap the right half plain text and the left half plain text */
-
+        cout << "the right palin half at round " << i + 1 << " is : " << convertBinToHex(plain_right_half) << endl;
+        cout << "the left palin half at round " << i + 1 << " is : " << convertBinToHex(plain_left_half) << endl;
+        swapStr(plain_right_half, plain_left_half);
     }
-    return "";
+    /*32 bits final swap */
+    swapStr(plain_right_half, plain_left_half);
+    /*combine the two halves*/
+    string combined = plain_left_half + plain_right_half;
+    /*final inverse permutation*/
+    string cipher = getPermuted(combined, inverse_init_perm_table, 64);
+    return cipher;
 }
 /*
  * Description : this function receives the input_text which is 48 bits and devide them into 8 groups each group is six bits
