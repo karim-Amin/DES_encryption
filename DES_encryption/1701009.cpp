@@ -9,6 +9,8 @@
 #include <iostream>
 #include <string>
 #include <map>
+#include <vector>
+#include <algorithm>
 using namespace std;
 /**********************************************************************
 *                               Definitions                           *
@@ -23,11 +25,14 @@ string convertHexToBin(string hex);
 string getPermuted(string input_text, int permute_table[], int table_size);
 string leftCircularShift(string input_text,int num_shifts);
 string xorGate(string input1, string input2);
-string encrypt(string plain_text,string key);
+string encrypt(string plain_text, vector<string> subkeys);
 string substitutionPermuted(string input_text,int sub_table[8][4][16],int num_tables,int num_rows,int num_colmuns);
 string adjustFourBits(int number);
-void swapStr(string str1, string str2);
+vector<string> generateSubkeys(string main_key);
 int binaryToDecimal(int n);
+/**********************************************************************
+*               The main function which the entry point               *
+***********************************************************************/
 int main()
 {
  
@@ -35,9 +40,14 @@ int main()
     string key = "1323445A6D788381";
     string bin_plain_text = convertHexToBin(plain_text);
     string bin_key = convertHexToBin(key);
-    string cipher = encrypt(bin_plain_text, bin_key);
+    vector<string> subkeys = generateSubkeys(bin_key);
+    string cipher = encrypt(bin_plain_text, subkeys);
+    // Reverse the vector
+    reverse(subkeys.begin(), subkeys.end());
+    string decrypted_message = encrypt(cipher, subkeys);
     cipher = convertBinToHex(cipher);
     cout <<"the cipher text : " <<cipher<<endl ;
+    cout << "the plain text : " << convertBinToHex(decrypted_message) <<endl;
     return 0;
 }
 /**********************************************************************
@@ -168,51 +178,10 @@ string xorGate(string input1, string input2) {
 /*
 * Description : this function do all premutations in DES 
 * also it generates all subkeys,and impelement all the sixteen rounds
-* finally it will return the cipher text
+* finally it will return the cipher text.
+* Note : i take the subkeys as an argument to be able to encrypt and decrypt with the same function
 */
-string encrypt(string plain_text,string key) {
-    /*this array will hold the drived subkeys*/
-    string keys[16];
-    /*First generate subkeys from the key we have*/
-    /*permutation choice 1 table*/
-    int premuted_choice1_table[56] = { 57, 49, 41, 33, 25, 17, 9,
-                   1, 58, 50, 42, 34, 26, 18,
-                   10, 2, 59, 51, 43, 35, 27,
-                   19, 11, 3, 60, 52, 44, 36,
-                   63, 55, 47, 39, 31, 23, 15,
-                   7, 62, 54, 46, 38, 30, 22,
-                   14, 6, 61, 53, 45, 37, 29,
-                   21, 13, 5, 28, 20, 12, 4 };
-    /*circular shift left table*/
-    int shift_table[16] = { 1, 1, 2, 2,
-                            2, 2, 2, 2,
-                            1, 2, 2, 2,
-                            2, 2, 2, 1 };
-    /*permutation choice 2 table*/
-    int premuted_choice2_table[48] = { 14, 17, 11, 24, 1, 5,
-                         3, 28, 15, 6, 21, 10,
-                         23, 19, 12, 4, 26, 8,
-                         16, 7, 27, 20, 13, 2,
-                         41, 52, 31, 37, 47, 55,
-                         30, 40, 51, 45, 33, 48,
-                         44, 49, 39, 56, 34, 53,
-                         46, 42, 50, 36, 29, 32 };
-    /*apply premutation choice 1 this key will be 56 bits*/
-    string compresed_key = getPermuted(key, premuted_choice1_table, 56);
-    /*split the key into two halves */
-    string left_half = compresed_key.substr(0,28);
-    string right_half = compresed_key.substr(28, 28);
-    /*apply left circular shift using the table above each key will be 56 bits*/
-    string shifted_keys[DES_NUM_OF_STAGES];
-    for (int i = 0; i < DES_NUM_OF_STAGES; i++) {
-        /*after applying the left circular shift ,i merged the two halves still the key size is 56 bits*/
-        shifted_keys[i] = leftCircularShift(left_half, shift_table[i]) + leftCircularShift(right_half, shift_table[i]);
-    }
-    /*apply premutation choice 2 this key will be 48 bits*/
-    string subkeys[DES_NUM_OF_STAGES];
-    for (int i = 0; i < DES_NUM_OF_STAGES; i++) {
-        subkeys[i] = getPermuted(shifted_keys[i], premuted_choice2_table,48);
-    }
+string encrypt(string plain_text,vector<string> subkeys) {
     /*now we have all subkeys we can use them in encryption*/
     /* Initial Permutation Table*/
     int initial_permutation_table[64] = { 58, 50, 42, 34, 26, 18, 10, 2,
@@ -291,9 +260,12 @@ string encrypt(string plain_text,string key) {
                            34, 2, 42, 10, 50, 18, 58, 26,
                            33, 1, 41, 9, 49, 17, 57, 25 };
     string permutated_plain_text = getPermuted(plain_text, initial_permutation_table, 64);
+    cout << "the plain text after initial permutation : " << convertBinToHex(permutated_plain_text) <<endl;
     /*now to follow the DES standard we have to split plain text into two halves*/
     string plain_left_half = permutated_plain_text.substr(0, 32);
     string plain_right_half = permutated_plain_text.substr(32, 32);
+    cout << "the plain text after splitting is : L0 = " << convertBinToHex(plain_left_half)<<
+         " R0 = "<< convertBinToHex(plain_right_half) << endl;
     /*holds expanded plain text left half*/
     string expanded_right_plain;
     /*holds the result from the xor operation*/
@@ -302,9 +274,13 @@ string encrypt(string plain_text,string key) {
     string substituation_result;
     /*to hold the final permutation in the round*/
     string final_permutation;
+    /*hold the value of left half palin*/
+    string left_buffer;
     /*this loop for 16 rounds*/
     /*this is the impelementation for only one round*/
     for (int i = 0; i < DES_NUM_OF_STAGES; i++) {
+        left_buffer = plain_left_half;
+        plain_left_half = plain_right_half;
         /*expanding the plain text left half which will be 48 bits */
         expanded_right_plain = getPermuted(plain_right_half, expansion_permutation_table, 48);
         /*the first xor operation in the round*/
@@ -314,14 +290,19 @@ string encrypt(string plain_text,string key) {
         /*last permutation stage*/
         final_permutation = getPermuted(substituation_result, permutaion_table, 32);
         /*the second xor operation in the round*/
-        plain_right_half = xorGate(final_permutation, plain_left_half);
+        plain_right_half = xorGate(final_permutation, left_buffer);
+        
         /*swap the right half plain text and the left half plain text */
         cout << "the right palin half at round " << i + 1 << " is : " << convertBinToHex(plain_right_half) << endl;
         cout << "the left palin half at round " << i + 1 << " is : " << convertBinToHex(plain_left_half) << endl;
-        swapStr(plain_right_half, plain_left_half);
+        cout << "the subkey at round " << i + 1 << " is : " << convertBinToHex(subkeys[i]) << endl;
+        cout << "-------------------------------------------------------------------------------" << endl;
     }
     /*32 bits final swap */
-    swapStr(plain_right_half, plain_left_half);
+    /*swap the two hlaves*/
+    string temp = plain_right_half;
+    plain_right_half = plain_left_half;
+    plain_left_half = temp;
     /*combine the two halves*/
     string combined = plain_left_half + plain_right_half;
     /*final inverse permutation*/
@@ -411,10 +392,57 @@ int binaryToDecimal(int n)
     return dec_value;
 }
 /*
-* Description : to swap two strings 
+* Description : to generate 16 subkeys from the main key
 */
-void swapStr(string str1, string str2) {
-    string temp = str1;
-    str1 = str2;
-    str2 = temp;
+vector<string> generateSubkeys(string main_key) {
+    /*this vector will hold the drived subkeys*/
+    vector<string> subkeys;
+    /*First generate subkeys from the key we have*/
+    /*permutation choice 1 table*/
+    int premuted_choice1_table[56] = { 57, 49, 41, 33, 25, 17, 9,
+                   1, 58, 50, 42, 34, 26, 18,
+                   10, 2, 59, 51, 43, 35, 27,
+                   19, 11, 3, 60, 52, 44, 36,
+                   63, 55, 47, 39, 31, 23, 15,
+                   7, 62, 54, 46, 38, 30, 22,
+                   14, 6, 61, 53, 45, 37, 29,
+                   21, 13, 5, 28, 20, 12, 4 };
+    /*circular shift left table*/
+    int shift_table[16] = { 1, 1, 2, 2,
+                            2, 2, 2, 2,
+                            1, 2, 2, 2,
+                            2, 2, 2, 1 };
+    /*permutation choice 2 table*/
+    int premuted_choice2_table[48] = { 14, 17, 11, 24, 1, 5,
+                         3, 28, 15, 6, 21, 10,
+                         23, 19, 12, 4, 26, 8,
+                         16, 7, 27, 20, 13, 2,
+                         41, 52, 31, 37, 47, 55,
+                         30, 40, 51, 45, 33, 48,
+                         44, 49, 39, 56, 34, 53,
+                         46, 42, 50, 36, 29, 32 };
+    /*apply premutation choice 1 this key will be 56 bits*/
+    string compresed_key = getPermuted(main_key, premuted_choice1_table, 56);
+    /*split the key into two halves */
+    string left_half = compresed_key.substr(0, 28);
+    string right_half = compresed_key.substr(28, 28);
+    /*apply left circular shift using the table above each key will be 56 bits*/
+    string right_shifted_keys[DES_NUM_OF_STAGES];
+    string left_shifted_keys[DES_NUM_OF_STAGES];
+    string shifted_keys[DES_NUM_OF_STAGES];
+    /*first time i will left shit the original two halves from the key*/
+    left_shifted_keys[0] = leftCircularShift(left_half, shift_table[0]);
+    right_shifted_keys[0] = leftCircularShift(right_half, shift_table[0]);
+    shifted_keys[0] = left_shifted_keys[0] + right_shifted_keys[0];
+    /*then i will left shit the pervious shifted keys*/
+    for (int i = 1; i < DES_NUM_OF_STAGES; i++) {
+        left_shifted_keys[i] = leftCircularShift(left_shifted_keys[i - 1], shift_table[i]);
+        right_shifted_keys[i] = leftCircularShift(right_shifted_keys[i - 1], shift_table[i]);
+        shifted_keys[i] = left_shifted_keys[i] + right_shifted_keys[i];
+    }
+    /*apply premutation choice 2 this key will be 48 bits*/
+    for (int i = 0; i < DES_NUM_OF_STAGES; i++) {
+        subkeys.push_back(getPermuted(shifted_keys[i], premuted_choice2_table, 48));
+    }
+    return subkeys;
 }
