@@ -1,10 +1,14 @@
-/*
+/**************************************************************************************************************
 * File name : 1701009.cpp
-* Description : this file will include the impelementation for DES security algorithm there will be two options to select to encrypt 
-* any message and the key will be required to compelete the process ,the second one is to decrype the cipher text using specific key.
+* 
+* Description : this file will include the impelementation for DES security algorithm.
+* there will be two options to select to encrypt any message.
+* and the key will be required to compelete the process.
+* the second one is to decrype the cipher text using specific key.
+* 
 * Autho : Karim Mohamed Amin
 * Date : 9/11/2021
-*/
+****************************************************************************************************************/
 
 #include <iostream>
 #include <string>
@@ -35,19 +39,36 @@ int binaryToDecimal(int n);
 ***********************************************************************/
 int main()
 {
- 
-    string plain_text = "7A6C731D22347676";
-    string key = "1323445A6D788381";
-    string bin_plain_text = convertHexToBin(plain_text);
-    string bin_key = convertHexToBin(key);
-    vector<string> subkeys = generateSubkeys(bin_key);
-    string cipher = encrypt(bin_plain_text, subkeys);
-    // Reverse the vector
-    reverse(subkeys.begin(), subkeys.end());
-    string decrypted_message = encrypt(cipher, subkeys);
-    cipher = convertBinToHex(cipher);
-    cout <<"the cipher text : " <<cipher<<endl ;
-    cout << "the plain text : " << convertBinToHex(decrypted_message) <<endl;
+    string operation, plain_text, key, cipher, decrypted_message;
+    string bin_plain_text, bin_key;
+    vector<string> subkeys;
+    /*take the operation type from the user either encrypt or decrypt*/
+    cin >> operation;
+    /*then the plain text*/
+    cin >> plain_text;
+    cin >> key;
+    if (operation == "encrypt") {
+        /*conversion from hex to binary*/
+        bin_plain_text = convertHexToBin(plain_text);
+        bin_key = convertHexToBin(key);
+        subkeys = generateSubkeys(bin_key);
+        cipher = encrypt(bin_plain_text, subkeys);
+        cout << "cipher: " << convertBinToHex(cipher) << endl;
+    }
+    else if(operation == "decrypt") {
+        /*conversion from hex to binary*/
+        bin_plain_text = convertHexToBin(plain_text);
+        bin_key = convertHexToBin(key);
+        subkeys = generateSubkeys(bin_key);
+        cipher = bin_plain_text;
+        // Reverse the vector
+        reverse(subkeys.begin(), subkeys.end());
+        decrypted_message = encrypt(cipher, subkeys);
+        cout << "plain: " << convertBinToHex(decrypted_message) << endl;
+    }
+    else {
+        cout << "ERROR" << endl;
+    }
     return 0;
 }
 /**********************************************************************
@@ -260,12 +281,9 @@ string encrypt(string plain_text,vector<string> subkeys) {
                            34, 2, 42, 10, 50, 18, 58, 26,
                            33, 1, 41, 9, 49, 17, 57, 25 };
     string permutated_plain_text = getPermuted(plain_text, initial_permutation_table, 64);
-    cout << "the plain text after initial permutation : " << convertBinToHex(permutated_plain_text) <<endl;
     /*now to follow the DES standard we have to split plain text into two halves*/
     string plain_left_half = permutated_plain_text.substr(0, 32);
     string plain_right_half = permutated_plain_text.substr(32, 32);
-    cout << "the plain text after splitting is : L0 = " << convertBinToHex(plain_left_half)<<
-         " R0 = "<< convertBinToHex(plain_right_half) << endl;
     /*holds expanded plain text left half*/
     string expanded_right_plain;
     /*holds the result from the xor operation*/
@@ -291,12 +309,6 @@ string encrypt(string plain_text,vector<string> subkeys) {
         final_permutation = getPermuted(substituation_result, permutaion_table, 32);
         /*the second xor operation in the round*/
         plain_right_half = xorGate(final_permutation, left_buffer);
-        
-        /*swap the right half plain text and the left half plain text */
-        cout << "the right palin half at round " << i + 1 << " is : " << convertBinToHex(plain_right_half) << endl;
-        cout << "the left palin half at round " << i + 1 << " is : " << convertBinToHex(plain_left_half) << endl;
-        cout << "the subkey at round " << i + 1 << " is : " << convertBinToHex(subkeys[i]) << endl;
-        cout << "-------------------------------------------------------------------------------" << endl;
     }
     /*32 bits final swap */
     /*swap the two hlaves*/
