@@ -37,33 +37,27 @@ int binaryToDecimal(int n);
 /**********************************************************************
 *               The main function which the entry point               *
 ***********************************************************************/
-int main()
+int main(int argc, char** argv)
 {
-    string operation, plain_text, key, cipher, decrypted_message;
+    string  cipher, decrypted_message;
     string bin_plain_text, bin_key;
     vector<string> subkeys;
-    /*take the operation type from the user either encrypt or decrypt*/
-    cin >> operation;
-    /*then the plain text*/
-    cin >> plain_text;
-    cin >> key;
-    if (operation == "encrypt") {
+    if (argv[1] == "encrypt") {
         /*conversion from hex to binary*/
-        bin_plain_text = convertHexToBin(plain_text);
-        bin_key = convertHexToBin(key);
+        bin_plain_text = convertHexToBin(argv[2]);
+        bin_key = convertHexToBin(argv[3]);
         subkeys = generateSubkeys(bin_key);
         cipher = encrypt(bin_plain_text, subkeys);
         cout << "cipher: " << convertBinToHex(cipher) << endl;
     }
-    else if(operation == "decrypt") {
+    else if(argv[1] == "decrypt") {
         /*conversion from hex to binary*/
-        bin_plain_text = convertHexToBin(plain_text);
-        bin_key = convertHexToBin(key);
+        bin_plain_text = convertHexToBin(argv[2]);
+        bin_key = convertHexToBin(argv[3]);
         subkeys = generateSubkeys(bin_key);
-        cipher = bin_plain_text;
         // Reverse the vector
         reverse(subkeys.begin(), subkeys.end());
-        decrypted_message = encrypt(cipher, subkeys);
+        decrypted_message = encrypt(bin_plain_text, subkeys);
         cout << "plain: " << convertBinToHex(decrypted_message) << endl;
     }
     else {
